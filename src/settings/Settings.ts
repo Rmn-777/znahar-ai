@@ -17,6 +17,7 @@ import { MessageDistributionRule, createDefaultMessageDistributionRule } from ".
 import { NoteCategory } from "src/categories/types";
 import { ProcessOldMessagesSettings, getDefaultProcessOldMessagesSettings } from "src/telegram/user/processingState";
 import { clearCachedUnprocessedMessages } from "src/telegram/user/userGateway";
+import type { ActionOverride } from "src/interactive/catalog";
 import { AdvancedSettingsModal } from "./modals/AdvancedSettings";
 import { ProcessOldMessagesSettingsModal } from "./modals/ProcessOldMessagesSettings";
 import { getOffsetDate } from "src/utils/dateUtils";
@@ -204,6 +205,15 @@ export interface TelegramSyncSettings {
 	customModel: string;
 	customTemperature: number;
 	customMaxTokens: number;
+	/**
+	 * Interactive flow: save media attachments into the vault during preparation.
+	 * Off: documents contribute their extracted text and the file stays in Telegram.
+	 */
+	interactiveSaveAttachments: boolean;
+	/** Interactive flow: write prepared results straight to the inbox, skipping the menu. */
+	interactiveDisabled: boolean;
+	/** Interactive flow: per-action overrides — enabled / quick-set / prompt. */
+	interactiveActionOverrides: Record<string, ActionOverride>;
 	// add new settings above this line
 	topicNames: Topic[];
 }
@@ -307,6 +317,9 @@ export const DEFAULT_SETTINGS: TelegramSyncSettings = {
 	customModel: "",
 	customTemperature: 0.7,
 	customMaxTokens: 2000,
+	interactiveSaveAttachments: true,
+	interactiveDisabled: false,
+	interactiveActionOverrides: {},
 	// add new settings above this line
 	topicNames: [],
 };
