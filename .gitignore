@@ -44,3 +44,6 @@ read_eslint.py
 out-test.js
 out-test-patched.js
 test-esbuild.js
+
+# One-off helper scripts
+tmp/

@@ -71,7 +71,10 @@ describe("canExtractTextLocally", () => {
 describe("extractTextFromDocument — PDF", () => {
 	// Regression: pdf-parse v2 has no callable default export, so the previous
 	// `pdf(buffer)` call threw TypeError and every PDF silently failed.
-	it("extracts text from a real PDF", async () => {
+	// Timeout raised from the 5 s default: this test spins up the pdf.js worker, and on a
+	// busy dev machine (parallel vitest runs, pre-commit over the full suite) the first
+	// spin-up exceeded 5 s — a flaky gate, not a slow regression.
+	it("extracts text from a real PDF", { timeout: 20_000 }, async () => {
 		const result = await extractTextFromDocument(makePdf("Hello PDF"), "doc.pdf", "application/pdf");
 		expect(result.success).toBe(true);
 		expect(result.text).toContain("Hello PDF");

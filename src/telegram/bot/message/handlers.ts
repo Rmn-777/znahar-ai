@@ -209,6 +209,14 @@ export async function handleMessage(plugin: TelegramSyncPlugin, msg: TelegramBot
 		if (await handleBotCommand(plugin, msg)) return;
 	}
 
+	// Follow-up text for an open interactive flow — the typed answer to «Своя команда»,
+	// a revision instruction, or "+ thought". Consumed here, before the pipeline: it must
+	// not become a note of its own. Lazy import for the same cycle reason as below.
+	{
+		const { handleInteractiveText } = await import("src/interactive/flow");
+		if (await handleInteractiveText(plugin, msg)) return;
+	}
+
 	addOriginalUserMsg(msg);
 
 	let msgText = (msg.text || msg.caption || fileInfo).replace(/\n/g, "..");
@@ -286,6 +294,11 @@ export async function handleMessage(plugin: TelegramSyncPlugin, msg: TelegramBot
 		// exists, left a crash window that lost the note and the ledger's copy of the message
 		// together, and a "done" record hid a later failure of the album note.
 		let sealedByAlbum = false;
+		// Set when the interactive flow took the message: it owns the rest of the lifecycle
+		// (menu → action → preview → confirmed note), completes the history record when the
+		// menu is up, and seals the ledger itself when the note is written — an open flow
+		// must not be sealed here, or the buttons would die with the message.
+		let sealedByInteractive = false;
 		if (msg.edit_date && plugin.settings.editedMessageUpdatesNote) {
 			// With parallel processing an edit can arrive while its original is still being
 			// handled (a slow AI request): the note does not exist yet, so the edit was appended
@@ -310,7 +323,15 @@ export async function handleMessage(plugin: TelegramSyncPlugin, msg: TelegramBot
 			// handleFiles again downloaded a second copy of the file (EDT-007).
 			const fileAlreadySaved = !!msg.edit_date && !!ledger?.getNoteRef(msg.chat.id, msg.message_id);
 
-			if (hasFile && distributionRule.filePathTemplate && !fileAlreadySaved) {
+			// The interactive flow takes the message here — after ledger.track() above put the
+			// raw update on disk, so a menu that fails to post replays through the same retry
+			// machinery as any other failure. The lazy import breaks the module cycle
+			// (flow → contentHandler → processors → bot → this file).
+			const { shouldStartInteractiveFlow, startInteractiveFlow } = await import("src/interactive/flow");
+			if (shouldStartInteractiveFlow(plugin, msg, isChannelPost)) {
+				await startInteractiveFlow(plugin, msg, distributionRule, trackingId);
+				sealedByInteractive = true;
+			} else if (hasFile && distributionRule.filePathTemplate && !fileAlreadySaved) {
 				// Register this album member as in flight for the whole download+append span,
 				// so handleMediaGroup never finalizes the group while its own file is coming.
 				if (msg.media_group_id) beginMediaGroupDownload(msg.media_group_id);
@@ -328,7 +349,7 @@ export async function handleMessage(plugin: TelegramSyncPlugin, msg: TelegramBot
 				await handleMessageText(plugin, msg, distributionRule);
 			}
 		}
-		if (!sealedByAlbum) {
+		if (!sealedByAlbum && !sealedByInteractive) {
 			recordProcessingDone(trackingId);
 			await ledger?.markProcessed(ledgerKey);
 		}

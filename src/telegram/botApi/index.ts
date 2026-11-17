@@ -27,6 +27,9 @@ namespace TelegramBot {
 	export type Voice = Types.Voice;
 	export type ReactionType = Types.ReactionType;
 	export type MessageReactionUpdated = Types.MessageReactionUpdated;
+	export type CallbackQuery = Types.CallbackQuery;
+	export type AnswerCallbackQueryOptions = Types.AnswerCallbackQueryOptions;
+	export type EditMessageTextOptions = Types.EditMessageTextOptions;
 	export type SetMessageReactionOptions = Types.SetMessageReactionOptions;
 	export type SendMessageOptions = Types.SendMessageOptions;
 	export type InlineKeyboardMarkup = Types.InlineKeyboardMarkup;

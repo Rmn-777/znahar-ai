@@ -155,6 +155,28 @@ export class InteractiveStore {
 		return this.entries.size;
 	}
 
+	/**
+	 * Live entries, newest-updated first. The callback and follow-up-text routing scan
+	 * them (which bubble was replied to, which flow awaits input in this chat) — a copy,
+	 * so a scan cannot be confused by an entry vanishing mid-iteration.
+	 */
+	all(): InteractiveEntry[] {
+		return [...this.entries.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+	}
+
+	/**
+	 * Replaces an entry's stored message with a fresh storable copy. A replay after a
+	 * restart carries the message's edited text; without this the flow would keep
+	 * quoting the pre-edit version it was originally opened with.
+	 */
+	refreshMsg(key: string, msg: TelegramBot.Message): void {
+		const entry = this.entries.get(key);
+		if (!entry) return;
+		entry.msg = toStorable(msg) as TelegramBot.Message;
+		entry.updatedAt = this.opts.now();
+		this.scheduleSave();
+	}
+
 	/** Oldest-created entries fall off first — an abandoned "menu" from weeks ago must not evict a live flow. */
 	private evictOverCapacity(): void {
 		const ordered = [...this.entries.values()].sort((a, b) => a.createdAt - b.createdAt);

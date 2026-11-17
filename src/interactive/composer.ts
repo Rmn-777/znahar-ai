@@ -47,6 +47,8 @@ function yamlScalar(value: string | number): string {
 /** The action label for the AI callout, e.g. "Конспект" — from the same locale key as the menu. */
 function actionTitle(actionId: string | undefined, provider: string | undefined): string | null {
 	if (!actionId || provider === "none") return null;
+	// A free-form command is not a catalog action, but it is still a titled layer.
+	if (actionId === "custom") return t("interactive.flow.customAction");
 	const action = getAction(actionId);
 	if (!action) return actionId;
 	return t(`interactive.actions.${action.id}`);

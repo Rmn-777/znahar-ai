@@ -46,6 +46,7 @@ import { CategoryManager } from "./categories/CategoryManager";
 import { initProcessingStatusBar, destroyProcessingStatusBar } from "./processing/ProcessingTracker";
 import { MessageLedger } from "./processing/MessageLedger";
 import { startMessageRetryLoop, stopMessageRetryLoop } from "./processing/retryScheduler";
+import { InteractiveStore } from "./interactive/store";
 import { initLocale, t } from "./locale/i18n";
 import { setDebugMode, debugLog } from "./utils/debugLog";
 
@@ -60,6 +61,8 @@ export default class TelegramSyncPlugin extends Plugin {
 	categoryManager?: CategoryManager;
 	/** Persistent processing state: dedup, retry queue, message→note map. See MessageLedger. */
 	messageLedger?: MessageLedger;
+	/** Open interactive flows (menu → action → preview → confirm), one per message. See interactive/. */
+	interactiveStore?: InteractiveStore;
 	/** How long onload() took, for the 500 ms budget and the diagnostic report. */
 	onloadDurationMs?: number;
 	private botStatus: ConnectionStatus = "disconnected";
@@ -379,6 +382,15 @@ export default class TelegramSyncPlugin extends Plugin {
 					displayAndLog(this, t("notices.ledgerInitFailed", { error: String(e) }), _5sec);
 				}
 
+				// The interactive flow store rides along with the ledger: buttons pressed
+				// after a restart must find their flow again. Its failure degrades the same
+				// way — automatic processing continues without the menus.
+				try {
+					await this.initInteractiveStore();
+				} catch (e) {
+					displayAndLog(this, t("notices.interactiveStoreInitFailed", { error: String(e) }), _5sec);
+				}
+
 				// Show setup wizard for first-time users
 				if (!this.settings.setupCompleted) {
 					const { SetupWizardModal } = await import("./settings/SetupWizard");
@@ -444,6 +456,25 @@ export default class TelegramSyncPlugin extends Plugin {
 		);
 	}
 
+	/**
+	 * Loads the interactive flow store from the plugin folder.
+	 *
+	 * Per-device for the same reason the ledger is (see initMessageLedger): Obsidian
+	 * Sync moves the plugin folder between devices, and two installs writing one
+	 * shared flow file would conflict on every message.
+	 */
+	async initInteractiveStore(): Promise<void> {
+		const pluginDir = this.manifest.dir ?? `.obsidian/plugins/${this.manifest.id}`;
+		const deviceId = this.currentDeviceId.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 32) || "unknown-device";
+		const flowsPath = normalizePath(`${pluginDir}/interactive-flows-${deviceId}.json`);
+		const adapter = this.app.vault.adapter;
+		this.interactiveStore = new InteractiveStore({
+			read: async () => ((await adapter.exists(flowsPath)) ? adapter.read(flowsPath) : null),
+			write: (data) => adapter.write(flowsPath, data),
+		});
+		await this.interactiveStore.init();
+	}
+
 	onunload(): void {
 		this.status = "unloading";
 		try {
@@ -451,6 +482,7 @@ export default class TelegramSyncPlugin extends Plugin {
 			// Writes the queue and dedup state out; the vault adapter outlives the plugin,
 			// so the write completes even though onunload cannot await it.
 			void this.messageLedger?.dispose();
+			void this.interactiveStore?.dispose();
 			void this.flushSettings();
 			clearTooManyRequestsInterval();
 			UserGateway.clearCachedMessagesInterval();

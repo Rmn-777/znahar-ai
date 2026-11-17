@@ -30,6 +30,11 @@ export async function connect(plugin: TelegramSyncPlugin) {
 		// every time makes the setting take effect in both directions, and narrows what
 		// Telegram sends us to what we actually handle.
 		const allowedUpdates = ["message", "edited_message", "channel_post", "edited_channel_post"];
+		// Always subscribed: the interactive flow's buttons address presses through it,
+		// and a press against a finished/foreign flow is answered harmlessly — gating it
+		// on a setting would repeat the one-way subscription trap the comment above
+		// describes (getUpdates remembers the last list it was given).
+		allowedUpdates.push("callback_query");
 		if (plugin.settings.reactionSyncEnabled) allowedUpdates.push("message_reaction");
 
 		const botOptions: TelegramBot.ConstructorOptions = {
@@ -106,6 +111,16 @@ export async function connect(plugin: TelegramSyncPlugin) {
 					displayAndLog(plugin, `Reaction sync failed: ${String(e)}`, 0);
 				}
 			})();
+		});
+
+		// Interactive-flow button presses. A handler failure here means the press was
+		// answered but the flow step failed — the bubble still shows the previous state,
+		// so the user can press again; nothing is lost by only logging it.
+		bot.on("callback_query", (query) => {
+			void (async () => {
+				const { handleInteractiveCallback } = await import("src/interactive/flow");
+				await handleInteractiveCallback(plugin, query);
+			})().catch(reportEscapedError);
 		});
 
 		// Check if the bot is connected and set the connected flag accordingly

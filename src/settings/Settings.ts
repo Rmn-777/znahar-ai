@@ -212,6 +212,8 @@ export interface TelegramSyncSettings {
 	interactiveSaveAttachments: boolean;
 	/** Interactive flow: write prepared results straight to the inbox, skipping the menu. */
 	interactiveDisabled: boolean;
+	/** Interactive flow: folder confirmed notes land in (the spec's Inbox). */
+	interactiveInboxFolder: string;
 	/** Interactive flow: per-action overrides — enabled / quick-set / prompt. */
 	interactiveActionOverrides: Record<string, ActionOverride>;
 	// add new settings above this line
@@ -319,6 +321,7 @@ export const DEFAULT_SETTINGS: TelegramSyncSettings = {
 	customMaxTokens: 2000,
 	interactiveSaveAttachments: true,
 	interactiveDisabled: false,
+	interactiveInboxFolder: "_Входящие",
 	interactiveActionOverrides: {},
 	// add new settings above this line
 	topicNames: [],
