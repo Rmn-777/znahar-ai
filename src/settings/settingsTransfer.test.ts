@@ -16,7 +16,7 @@ import { exportSettings, importSettings } from "./settingsTransfer";
  *     write there can plant one.
  */
 
-const EXPORT_PATH = "telegram-ai-settings.json";
+const EXPORT_PATH = "znahar-ai-settings.json";
 
 interface FakePlugin {
 	plugin: TelegramSyncPlugin;
@@ -60,7 +60,7 @@ function makePlugin(overrides: Record<string, unknown> = {}): FakePlugin {
 }
 
 /** Writes an import file the way a user (or anything else with vault write access) would. */
-function planted(files: Map<string, string>, settings: Record<string, unknown>, format = "telegram-ai-settings") {
+function planted(files: Map<string, string>, settings: Record<string, unknown>, format = "znahar-ai-settings") {
 	files.set(EXPORT_PATH, JSON.stringify({ format, formatVersion: 1, pluginVersion: "0.9.9", settings }));
 }
 
@@ -169,7 +169,7 @@ describe("importSettings", () => {
 		const { plugin, files } = makePlugin();
 		files.set(
 			EXPORT_PATH,
-			`{"format":"telegram-ai-settings","formatVersion":1,"pluginVersion":"0.9.9",` +
+			`{"format":"znahar-ai-settings","formatVersion":1,"pluginVersion":"0.9.9",` +
 				`"settings":{"__proto__":{"polluted":"yes"},"constructor":{"polluted":"yes"}}}`,
 		);
 
@@ -240,10 +240,10 @@ describe("importSettings", () => {
 describe("importSettings — malformed files", () => {
 	it.each([
 		["null", "null"],
-		["a string payload", '"telegram-ai-settings"'],
-		["settings as a string", '{"format":"telegram-ai-settings","settings":"aiEnabled=true"}'],
-		["settings as an array", '{"format":"telegram-ai-settings","settings":[1,2]}'],
-		["settings null", '{"format":"telegram-ai-settings","settings":null}'],
+		["a string payload", '"znahar-ai-settings"'],
+		["settings as a string", '{"format":"znahar-ai-settings","settings":"aiEnabled=true"}'],
+		["settings as an array", '{"format":"znahar-ai-settings","settings":[1,2]}'],
+		["settings null", '{"format":"znahar-ai-settings","settings":null}'],
 	])("rejects %s without throwing", async (_label, raw) => {
 		const { plugin, files } = makePlugin();
 		files.set(EXPORT_PATH, raw);
@@ -305,7 +305,7 @@ describe("importSettings — setup state", () => {
 		files.set(
 			EXPORT_PATH,
 			JSON.stringify({
-				format: "telegram-ai-settings",
+				format: "znahar-ai-settings",
 				formatVersion: 1,
 				settings: { setupCompleted: false, aiEnabled: true },
 			}),

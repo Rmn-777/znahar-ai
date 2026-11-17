@@ -142,7 +142,7 @@ export function buildDiagnosticReport(plugin: TelegramSyncPlugin, now = new Date
 export async function exportDiagnosticReport(plugin: TelegramSyncPlugin): Promise<string> {
 	const now = new Date();
 	const stamp = now.toISOString().slice(0, 16).replace(/[T:]/g, "-");
-	const reportPath = `telegram-ai-diagnostics-${stamp}.md`;
+	const reportPath = `znahar-ai-diagnostics-${stamp}.md`;
 	const report = buildDiagnosticReport(plugin, now);
 
 	try {

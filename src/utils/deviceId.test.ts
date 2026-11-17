@@ -26,7 +26,7 @@ describe("getOrCreateDeviceId", () => {
 
 		expect(id).toMatch(/^[0-9a-f]{16}$/);
 		expect(spies.saveLocalStorage).toHaveBeenCalledTimes(1);
-		expect(store["telegram-ai-device-id"]).toBe(id);
+		expect(store["znahar-ai-device-id"]).toBe(id);
 	});
 
 	it("returns the same id on later calls", () => {
@@ -52,7 +52,7 @@ describe("getOrCreateDeviceId", () => {
 	});
 
 	it("ignores an empty stored value", () => {
-		const { app } = makeApp({ "telegram-ai-device-id": "" });
+		const { app } = makeApp({ "znahar-ai-device-id": "" });
 		expect(getOrCreateDeviceId(app)).toMatch(/^[0-9a-f]{16}$/);
 	});
 });

@@ -23,7 +23,7 @@
 
 import { App } from "obsidian";
 
-const DEVICE_ID_KEY = "telegram-ai-device-id";
+const DEVICE_ID_KEY = "znahar-ai-device-id";
 
 /** 16 hex characters — short enough to read out over a chat, wide enough not to collide. */
 function generateDeviceId(): string {

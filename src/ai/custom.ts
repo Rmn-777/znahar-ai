@@ -36,7 +36,7 @@ export function normalizeBaseUrl(baseUrl: string): string {
 /**
  * Why this is checked at all: `customApiKey` travels to this URL as an
  * `Authorization: Bearer` header. The setting is free text and is importable from a
- * vault-root telegram-ai-settings.json, so an unvalidated value could point the key at
+ * vault-root znahar-ai-settings.json, so an unvalidated value could point the key at
  * anything — including a plaintext `http://` host on someone else's network.
  *
  * Loopback over http is deliberately allowed: running Ollama or LM Studio on

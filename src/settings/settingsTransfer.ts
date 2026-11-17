@@ -23,7 +23,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * into chats and issues.
  */
 
-const EXPORT_FILE = "telegram-ai-settings.json";
+const EXPORT_FILE = "znahar-ai-settings.json";
 
 /** Fields that must not travel: secrets, their flags, and per-device/account state. */
 function excludedFields(): Set<string> {
@@ -81,7 +81,7 @@ export async function exportSettings(plugin: TelegramSyncPlugin): Promise<string
 	}
 
 	const payload = {
-		format: "telegram-ai-settings",
+		format: "znahar-ai-settings",
 		formatVersion: 1,
 		exportedAt: new Date().toISOString(),
 		pluginVersion: plugin.manifest.version,
@@ -116,7 +116,7 @@ export async function importSettings(plugin: TelegramSyncPlugin): Promise<boolea
 	}
 	// Shape checks before any property access: a file holding `null`, or "settings" as a
 	// string or an array, threw a TypeError out of the command instead of saying "invalid".
-	if (!isPlainObject(payload) || payload.format !== "telegram-ai-settings" || !isPlainObject(payload.settings)) {
+	if (!isPlainObject(payload) || payload.format !== "znahar-ai-settings" || !isPlainObject(payload.settings)) {
 		new Notice(t("settings.transfer.invalid"));
 		return false;
 	}

@@ -182,7 +182,7 @@ describe("exportDiagnosticReport", () => {
 
 		const path = await exportDiagnosticReport(plugin);
 
-		expect(path).toMatch(/^telegram-ai-diagnostics-[\d-]+\.md$/);
+		expect(path).toMatch(/^znahar-ai-diagnostics-[\d-]+\.md$/);
 		expect(vault.create).toHaveBeenCalledTimes(1);
 		const written = vault.create.mock.calls[0][1] as string;
 		expect(written).toContain("# Telegram AI diagnostic report");

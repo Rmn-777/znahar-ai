@@ -1,6 +1,6 @@
-# Telegram AI
+# Знахарь AI (znahar-ai)
 
-Turns messages you send to your own Telegram bot into notes in your vault, with optional AI processing (OpenAI, Claude, Gemini or any OpenAI-compatible endpoint), smart categorization and local document text extraction. Works on desktop and mobile (mobile is in beta).
+Форк [obsidian-telegram-ai](https://github.com/reaLm74/obsidian-telegram-ai) — «Коллектор знаний»: сообщения боту в Telegram открывают в чате меню действий (расшифровка, конспект, OCR, своя команда), результат просматривается и правится в чате, и по подтверждению ложится в папку входящих Obsidian заметкой с разделением исходник / мои мысли / ИИ. Работает на ПК и Android.
 
 ## ✨ Key Features
 

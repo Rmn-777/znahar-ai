@@ -406,7 +406,7 @@ export async function handleMessageText(
 		if (validLinks.length > 0) {
 			// sanitizeFilePath, not just .trim(): normalizePath() (used by createFolderIfNotExist
 			// and appendContentToNote) collapses slashes but does NOT strip "..", and this
-			// setting is importable from a vault-root telegram-ai-settings.json. Every other
+			// setting is importable from a vault-root znahar-ai-settings.json. Every other
 			// path builder sanitizes its base; this one did not, so "../../.." escaped the vault.
 			const baseFolder = sanitizeFilePath(plugin.settings.linksCategoryFolder.trim()) || "Links";
 			const delimiter = plugin.settings.defaultMessageDelimiter ? defaultDelimiter : "\n\n";
