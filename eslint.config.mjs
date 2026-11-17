@@ -129,7 +129,7 @@ export default defineConfig([
 	// would break the Node path. Scoped here because inline disables of this rule are
 	// forbidden by eslint-comments/no-restricted-disable.
 	{
-		files: ["src/processing/MessageLedger.ts"],
+		files: ["src/processing/MessageLedger.ts", "src/interactive/store.ts"],
 		rules: {
 			"obsidianmd/prefer-window-timers": "off",
 		},

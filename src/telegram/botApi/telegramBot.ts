@@ -67,6 +67,7 @@ interface BotEvents {
 	channel_post: (msg: Types.Message) => void;
 	edited_channel_post: (msg: Types.Message) => void;
 	message_reaction: (reaction: Types.MessageReactionUpdated) => void;
+	callback_query: (query: Types.CallbackQuery) => void;
 	polling_error: (error: unknown) => void;
 }
 
@@ -245,6 +246,7 @@ export class TelegramBotClient {
 		if (update.channel_post) this.emit("channel_post", update.channel_post);
 		if (update.edited_channel_post) this.emit("edited_channel_post", update.edited_channel_post);
 		if (update.message_reaction) this.emit("message_reaction", update.message_reaction);
+		if (update.callback_query) this.emit("callback_query", update.callback_query);
 	}
 
 	private async getUpdates(): Promise<Types.Update[]> {
@@ -317,6 +319,26 @@ export class TelegramBotClient {
 
 	async deleteMessage(chatId: number | string, messageId: number): Promise<boolean> {
 		return this.call<boolean>("deleteMessage", { chat_id: chatId, message_id: messageId });
+	}
+
+	/** Acknowledges an inline-button press; a missing answer leaves the button spinning. */
+	async answerCallbackQuery(callbackQueryId: string, options?: Types.AnswerCallbackQueryOptions): Promise<boolean> {
+		return this.call<boolean>("answerCallbackQuery", { callback_query_id: callbackQueryId, ...options });
+	}
+
+	/** Rewrites the text of a sent message in place — the menu/preview surface of the interactive flow. */
+	async editMessageText(
+		chatId: number | string,
+		messageId: number,
+		text: string,
+		options?: Types.EditMessageTextOptions,
+	): Promise<Types.Message | boolean> {
+		return this.call<Types.Message | boolean>("editMessageText", {
+			chat_id: chatId,
+			message_id: messageId,
+			text,
+			...options,
+		});
 	}
 
 	async editMessageReplyMarkup(

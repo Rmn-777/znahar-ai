@@ -191,6 +191,29 @@ export interface Message {
 	reply_markup?: InlineKeyboardMarkup;
 }
 
+/** A press on an inline keyboard button (`callback_data`). The interactive flow routes on it. */
+export interface CallbackQuery {
+	id: string;
+	from: User;
+	/** The message the keyboard was attached to, when Telegram can still serve it. */
+	message?: Message;
+	chat_instance?: string;
+	data?: string;
+}
+
+export interface AnswerCallbackQueryOptions {
+	/** Toast shown on the button; up to 200 characters. Empty = silent acknowledgement. */
+	text?: string;
+	/** Render `text` as a dialog instead of a toast. */
+	show_alert?: boolean;
+}
+
+export interface EditMessageTextOptions {
+	parse_mode?: "HTML" | "Markdown" | "MarkdownV2";
+	reply_markup?: InlineKeyboardMarkup;
+	disable_web_page_preview?: boolean;
+}
+
 export interface ReactionTypeEmoji {
 	type: "emoji";
 	emoji: string;
@@ -220,6 +243,7 @@ export interface Update {
 	channel_post?: Message;
 	edited_channel_post?: Message;
 	message_reaction?: MessageReactionUpdated;
+	callback_query?: CallbackQuery;
 }
 
 export interface File {

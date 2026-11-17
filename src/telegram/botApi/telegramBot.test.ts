@@ -164,6 +164,70 @@ describe("call", () => {
 	});
 });
 
+describe("callback queries and message editing", () => {
+	it("answerCallbackQuery sends the id and the toast text", async () => {
+		requestUrlMock.mockResolvedValue(apiOk(true));
+
+		const bot = new TelegramBotClient(TOKEN);
+		await bot.answerCallbackQuery("cbid", { text: "Выполняю…" });
+
+		expect(requestBody()).toEqual({ callback_query_id: "cbid", text: "Выполняю…" });
+	});
+
+	it("answerCallbackQuery works without options", async () => {
+		requestUrlMock.mockResolvedValue(apiOk(true));
+
+		const bot = new TelegramBotClient(TOKEN);
+		await bot.answerCallbackQuery("cbid");
+
+		expect(requestBody()).toEqual({ callback_query_id: "cbid" });
+	});
+
+	it("editMessageText sends chat, message id, text and markup", async () => {
+		requestUrlMock.mockResolvedValue(apiOk(minimalMessage(2)));
+		const markup = { inline_keyboard: [[{ text: "ok", callback_data: "d" }]] };
+
+		const bot = new TelegramBotClient(TOKEN);
+		await bot.editMessageText(5, 99, "новый текст", { reply_markup: markup, parse_mode: "Markdown" });
+
+		expect(requestBody()).toEqual({
+			chat_id: 5,
+			message_id: 99,
+			text: "новый текст",
+			reply_markup: markup,
+			parse_mode: "Markdown",
+		});
+	});
+
+	it("dispatches a callback_query update to its listener", async () => {
+		const query: Types.CallbackQuery = {
+			id: "cb1",
+			from: { id: 7, first_name: "U" },
+			data: "ia:1:2:a:tldr",
+			message: minimalMessage(10),
+		};
+		const fetchMock = vi
+			.fn()
+			.mockImplementationOnce(() =>
+				Promise.resolve({
+					json: () => Promise.resolve({ ok: true, result: [{ update_id: 1, callback_query: query }] }),
+				}),
+			)
+			.mockImplementation(hangUntilAborted);
+		vi.stubGlobal("fetch", fetchMock);
+
+		const bot = new TelegramBotClient(TOKEN, {
+			polling: { autoStart: false, params: { allowed_updates: ["callback_query"] } },
+		});
+		const seen: Types.CallbackQuery[] = [];
+		bot.on("callback_query", (q) => seen.push(q));
+
+		await bot.startPolling();
+		await vi.waitFor(() => expect(seen).toEqual([query]));
+		await bot.stopPolling();
+	});
+});
+
 describe("polling", () => {
 	it("dispatches updates to listeners and advances the offset past the batch", async () => {
 		// A broken listener logs; silence it and keep the assertion below.
