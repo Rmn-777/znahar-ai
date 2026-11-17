@@ -690,3 +690,12 @@
 	/* Five labelled steps do not fit a phone-width header; numbers carry the state. */
 	display: none;
 }
+
+/* Interactive actions modal: the prompt editor spans the full row width. */
+.tgai-prompt-editor .setting-item-control {
+	width: 100%;
+}
+
+.tgai-prompt-editor textarea {
+	width: 100%;
+}

@@ -11,6 +11,7 @@ import { getTopicId } from "src/telegram/bot/message/getters";
 import { addBot } from "./sections/connectionSection";
 import { addAISettings } from "./sections/aiSection";
 import { addCategoriesSettings } from "./sections/categoriesSection";
+import { addInteractiveSettings } from "./sections/interactiveSection";
 import { KeysOfConnectionStatusIndicatorType } from "src/ConnectionStatusIndicator";
 import { enqueue } from "src/utils/queues";
 import { MessageDistributionRule, createDefaultMessageDistributionRule } from "./messageDistribution";
@@ -443,6 +444,9 @@ export class TelegramSyncSettingTab extends PluginSettingTab {
 
 		new Setting(this.containerEl).setName(t("settings.ai.heading")).setHeading();
 		addAISettings(this.containerEl, this.app, this.plugin, update);
+
+		new Setting(this.containerEl).setName(t("settings.interactive.heading")).setHeading();
+		addInteractiveSettings(this.containerEl, this.plugin, update);
 
 		new Setting(this.containerEl).setName(t("settings.categories.heading")).setHeading();
 		addCategoriesSettings(this.containerEl, this.app, this.plugin, update);

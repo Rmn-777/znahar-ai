@@ -19,6 +19,7 @@ const COMPUTED_KEYS = new Set([
 	"allowedChatsText",
 	"telegramFolder",
 	"categorizationEnabled",
+	"interactiveEnabled",
 	"openaiModelChoice",
 	"claudeModelChoice",
 	"geminiModelChoice",

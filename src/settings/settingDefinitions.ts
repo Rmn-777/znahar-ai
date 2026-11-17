@@ -124,6 +124,8 @@ export function resolveControlValue(plugin: TelegramSyncPlugin, key: string): un
 		}
 		case "categorizationEnabled":
 			return isCategorizationEnabled(plugin) && plugin.settings.aiEnabled;
+		case "interactiveEnabled":
+			return !plugin.settings.interactiveDisabled;
 		case "openaiModelChoice":
 		case "claudeModelChoice":
 		case "geminiModelChoice": {
@@ -168,6 +170,9 @@ export async function applyControlValue(
 		}
 		case "categorizationEnabled":
 			setCategorizationEnabled(plugin, Boolean(value));
+			break;
+		case "interactiveEnabled":
+			plugin.settings.interactiveDisabled = !value;
 			break;
 		case "openaiModelChoice":
 		case "claudeModelChoice":
@@ -449,6 +454,7 @@ export function buildSettingDefinitions(host: DefinitionHost): SettingDefinition
 
 	const aiOn = () => plugin.settings.aiEnabled;
 	const providerIs = (id: string) => () => aiOn() && activeProviderId(plugin) === id;
+	const interactiveOn = () => !plugin.settings.interactiveDisabled;
 
 	return [
 		// ── Bot ──────────────────────────────────────────────────────────────
@@ -870,6 +876,48 @@ export function buildSettingDefinitions(host: DefinitionHost): SettingDefinition
 							},
 						},
 					],
+				},
+			],
+		},
+
+		// ── Interactive flow ────────────────────────────────────────────────
+		{
+			type: "group",
+			heading: t("settings.interactive.heading"),
+			items: [
+				{
+					name: t("settings.interactive.enable"),
+					desc: t("settings.interactive.enable.desc"),
+					aliases: ["interactive", "menu", "buttons", "flow"],
+					// The stored flag is "disabled": the settings surface speaks the user's
+					// language ("enable the flow"), so the computed key inverts it.
+					control: { type: "toggle", key: "interactiveEnabled", defaultValue: true },
+				},
+				{
+					name: t("settings.interactive.inboxFolder"),
+					desc: t("settings.interactive.inboxFolder.desc"),
+					aliases: ["inbox", "folder"],
+					visible: interactiveOn,
+					control: { type: "text", key: "interactiveInboxFolder", placeholder: "_Входящие" },
+				},
+				{
+					name: t("settings.interactive.attachments"),
+					desc: t("settings.interactive.attachments.desc"),
+					aliases: ["attachments", "files", "media"],
+					visible: interactiveOn,
+					control: { type: "toggle", key: "interactiveSaveAttachments", defaultValue: true },
+				},
+				{
+					name: t("settings.interactive.actions"),
+					desc: t("settings.interactive.actions.desc"),
+					aliases: ["actions", "buttons", "prompts", "quick set"],
+					visible: interactiveOn,
+					action: () => {
+						void (async () => {
+							const { InteractiveActionsModal } = await import("./modals/InteractiveActionsModal");
+							new InteractiveActionsModal(plugin, () => host.update()).open();
+						})();
+					},
 				},
 			],
 		},

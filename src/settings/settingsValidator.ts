@@ -154,6 +154,12 @@ export const SETTINGS_SCHEMA: Record<string, FieldValidator> = {
 	customModel: isString,
 	customTemperature: isNumber,
 	customMaxTokens: isNumber,
+	// Interactive flow (Коллектор): the menu, inbox folder, attachment saving and
+	// per-action overrides (enabled/quick/prompt).
+	interactiveDisabled: isBoolean,
+	interactiveSaveAttachments: isBoolean,
+	interactiveInboxFolder: isString,
+	interactiveActionOverrides: isObject,
 	topicNames: isArray,
 };
 

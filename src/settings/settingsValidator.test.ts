@@ -98,6 +98,10 @@ const TEST_DEFAULTS: Record<string, unknown> = {
 	customModel: "",
 	customTemperature: 0.7,
 	customMaxTokens: 2000,
+	interactiveDisabled: false,
+	interactiveSaveAttachments: true,
+	interactiveInboxFolder: "_Входящие",
+	interactiveActionOverrides: {},
 	topicNames: [],
 };
 

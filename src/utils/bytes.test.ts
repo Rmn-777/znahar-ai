@@ -60,7 +60,9 @@ describe("bytesToBase64", () => {
 
 	// A whole-file-sized input is exactly what used to overflow V8's argument limit
 	// before the sliced fromCharCode; it must neither throw nor corrupt.
-	it("round-trips a 200KB chunk", () => {
+	// Timeout raised from the 5 s default: the 200 KB round-trip is CPU-bound and on a
+	// busy machine (full suite + pre-commit in parallel) it has flaked the gate.
+	it("round-trips a 200KB chunk", { timeout: 20_000 }, () => {
 		const big = fillBytes(200 * 1024, 13);
 		const b64 = bytesToBase64(big);
 		expect(new Uint8Array(Buffer.from(b64, "base64"))).toEqual(big);
