@@ -533,7 +533,7 @@
 	"settings.interactive.noAI": "⚠ The menu needs a configured AI provider",
 	"settings.interactive.noAI.desc": "Messages are currently saved straight to the inbox. Configure a provider in the AI section above to get the action menu.",
 	"settings.interactive.inboxFolder": "Inbox folder",
-	"settings.interactive.inboxFolder.desc": "Confirmed notes land here (created on demand).",
+	"settings.interactive.inboxFolder.desc": "Vault-relative path, e.g. \"00 Inbox\" — not a disk path. Subfolders with \"/\". The folder is created on demand.",
 	"settings.interactive.attachments": "Save attachments to the vault",
 	"settings.interactive.attachments.desc": "Media files are written into the vault and embedded in the note. Off: only their text (transcript/OCR) is kept and the file stays in Telegram.",
 	"settings.interactive.actions": "Actions and quick set",

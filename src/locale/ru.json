@@ -533,7 +533,7 @@
 	"settings.interactive.noAI": "⚠ Для меню нужен настроенный ИИ-провайдер",
 	"settings.interactive.noAI.desc": "Сейчас сообщения сохраняются сразу во входящие. Настройте провайдера в разделе ИИ выше — появится меню действий.",
 	"settings.interactive.inboxFolder": "Папка входящих",
-	"settings.interactive.inboxFolder.desc": "Подтверждённые заметки попадают сюда (папка создаётся при необходимости).",
+	"settings.interactive.inboxFolder.desc": "Путь от корня хранилища, например «00 Входящие» — не путь диска. Вложенные папки через «/». Папка создаётся автоматически.",
 	"settings.interactive.attachments": "Сохранять вложения в хранилище",
 	"settings.interactive.attachments.desc": "Медиафайлы записываются в хранилище и вставляются в заметку. Выключено: сохраняется только текст (расшифровка/OCR), файл остаётся в Telegram.",
 	"settings.interactive.actions": "Действия и быстрый набор",
