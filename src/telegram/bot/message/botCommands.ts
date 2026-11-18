@@ -175,6 +175,13 @@ export function buildStatusLines(plugin: TelegramSyncPlugin): string[] {
 			}),
 		);
 	}
+	// The MAX channel's own line — the one place its connection state is visible; the
+	// Telegram status indicator knows nothing about it.
+	if (plugin.settings.maxEnabled) {
+		lines.push(
+			`${t("commands.status.max")}: ${plugin.maxBot?.isPolling() ? t("commands.status.connected") : t("commands.status.disconnected")}`,
+		);
+	}
 	return lines;
 }
 

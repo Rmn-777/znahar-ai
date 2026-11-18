@@ -582,5 +582,6 @@
 	"settings.max.enable": "Канал MAX",
 	"settings.max.enable.desc": "Принимать сообщения от бота MAX в тот же интерактивный конвейер — вместе с Telegram или вместо него. В этом релизе — текст и кнопки; медиа из MAX пока не скачивается.",
 	"settings.max.token": "Токен бота MAX",
-	"settings.max.token.desc": "Из MAX → «MAX для бизнеса» → Чат-боты → создать бота → Настройки → «Получить токен»."
+	"settings.max.token.desc": "Из MAX → «MAX для бизнеса» → Чат-боты → создать бота → Настройки → «Получить токен».",
+	"commands.status.max": "Канал MAX"
 }

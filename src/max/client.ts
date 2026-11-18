@@ -65,6 +65,10 @@ export class MaxBotClient {
 	private pollAbort?: AbortController;
 	/** MAX's cursor: echoed back as ?marker= on the next poll; absent means "from oldest". */
 	private marker?: number;
+	/** Set after the first fetch failed on this network: raw fetch never worked here. */
+	private pollWithRequestUrl = false;
+	/** A fetch poll has completed once — the transport works on this network. */
+	private fetchPollSucceeded = false;
 
 	constructor(token: string, options?: { pollTimeoutSeconds?: number }) {
 		this.token = token;
@@ -193,6 +197,17 @@ export class MaxBotClient {
 	}
 
 	private async getUpdates(): Promise<Types.MaxUpdatesResponse> {
+		// Unlike api.telegram.org, platform-api2.max.ru does not promise CORS headers, and
+		// desktop Obsidian enforces them on raw fetch — the first fetch fails with a
+		// TypeError and every poll would burn in retry purgatory. First fetch failure
+		// switches to requestUrl permanently (the same pattern TelegramBotClient uses);
+		// an abort is still a routine non-event, and a fetch that HAS worked once keeps
+		// being the primary transport (network drops stay recoverable).
+		if (this.pollWithRequestUrl) {
+			return this.call<Types.MaxUpdatesResponse>("updates", {
+				query: { marker: this.marker, timeout: this.pollTimeoutSeconds },
+			});
+		}
 		const abort = new AbortController();
 		this.pollAbort = abort;
 		const watchdog = window.setTimeout(() => abort.abort(), (this.pollTimeoutSeconds + 15) * 1000);
@@ -204,9 +219,15 @@ export class MaxBotClient {
 				signal: abort.signal,
 			});
 			const result = this.unwrap<Types.MaxUpdatesResponse>("updates", await response.json());
+			this.fetchPollSucceeded = true;
 			return result ?? { updates: [] };
 		} catch (e) {
 			if (abort.signal.aborted) return { updates: [] };
+			if (e instanceof TypeError && !this.fetchPollSucceeded) {
+				// CORS or an unrouteable transport — requestUrl is exempt from CORS in Obsidian.
+				this.pollWithRequestUrl = true;
+				return this.getUpdates();
+			}
 			throw new MaxFatalError("updates", e);
 		} finally {
 			window.clearTimeout(watchdog);

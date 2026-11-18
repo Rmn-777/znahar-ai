@@ -582,5 +582,6 @@
 	"settings.max.enable": "MAX messenger channel",
 	"settings.max.enable.desc": "Accept messages from a MAX bot into the same interactive flow — alongside Telegram or instead of it. Text and buttons in this release; media from MAX is not downloaded yet.",
 	"settings.max.token": "MAX bot token",
-	"settings.max.token.desc": "From MAX → «MAX для бизнеса» → Чат-боты → создать бота → Настройки → «Получить токен»."
+	"settings.max.token.desc": "From MAX → «MAX для бизнеса» → Чат-боты → создать бота → Настройки → «Получить токен».",
+	"commands.status.max": "MAX channel"
 }
