@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgL" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#EDE9FE"/>
+      <stop offset="1" stop-color="#DDD6FE"/>
+    </linearGradient>
+    <linearGradient id="bubbleL" gradientUnits="userSpaceOnUse" x1="256" y1="118" x2="256" y2="330">
+      <stop offset="0" stop-color="#6D28D9"/>
+      <stop offset="1" stop-color="#4C1D95"/>
+    </linearGradient>
+    <linearGradient id="leafL" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34D399"/>
+      <stop offset="1" stop-color="#059669"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="8" y="8" width="496" height="496" rx="112" fill="url(#bgL)"/>
+  <rect x="14" y="14" width="484" height="484" rx="106" fill="none" stroke="#7C3AED" stroke-opacity="0.3" stroke-width="4"/>
+
+  <g>
+    <rect x="106" y="118" width="300" height="212" rx="64" fill="url(#bubbleL)"/>
+    <path d="M170 322 C163 350 156 372 146 396 C174 382 200 360 218 340 Z" fill="url(#bubbleL)"/>
+  </g>
+
+  <g>
+    <path d="M252 296 C254 252 250 222 236 184" fill="none" stroke="#A7F3D0" stroke-width="11" stroke-linecap="round"/>
+    <path d="M238 196 C204 194 180 172 176 140 C212 142 236 164 238 196 Z" fill="url(#leafL)"/>
+    <path d="M248 250 C282 248 306 226 310 194 C274 196 250 218 248 250 Z" fill="url(#leafL)"/>
+    <path d="M236 182 C224 146 228 116 246 86 C264 114 266 148 254 178 C250 188 240 188 236 182 Z" fill="url(#leafL)"/>
+  </g>
+
+  <path d="M372 148 C377 166 380 169 398 174 C380 179 377 182 372 200 C367 182 364 179 346 174 C364 169 367 166 372 148 Z" fill="#FCD34D"/>
+  <path d="M366 226 C369 236 371 238 381 241 C371 244 369 246 366 256 C363 246 361 244 351 241 C361 238 363 236 366 226 Z" fill="#FDE68A" opacity="0.85"/>
+</svg>
