@@ -47,6 +47,7 @@ import { initProcessingStatusBar, destroyProcessingStatusBar } from "./processin
 import { MessageLedger } from "./processing/MessageLedger";
 import { startMessageRetryLoop, stopMessageRetryLoop } from "./processing/retryScheduler";
 import { InteractiveStore } from "./interactive/store";
+import type { MaxBotClient } from "./max/client";
 import { initLocale, t } from "./locale/i18n";
 import { setDebugMode, debugLog } from "./utils/debugLog";
 
@@ -72,6 +73,8 @@ export default class TelegramSyncPlugin extends Plugin {
 	checkingUserConnection = false;
 	// TODO LOW: TelegramSyncBot extends TelegramBot
 	bot?: TelegramBot;
+	/** The MAX messenger client, when the MAX channel is enabled and connected. */
+	maxBot?: MaxBotClient;
 	botUser?: TelegramBot.User;
 	createdFilePaths: string[] = [];
 	// A random id kept in this profile's localStorage — see utils/deviceId.ts for why it
@@ -112,6 +115,14 @@ export default class TelegramSyncPlugin extends Plugin {
 			await UserGateway.connectUser(this, this.settings.telegramSessionType, this.settings.telegramSessionId);
 
 		if (!initType || initType == "bot") await Bot.connect(this);
+
+		// The MAX channel is an independent road: it connects on its own settings
+		// (maxEnabled + token), survives a missing/failed Telegram connection, and
+		// reconnects on its own — never gated by the Telegram branch above.
+		{
+			const { connectMax } = await import("./max/bridge");
+			await connectMax(this);
+		}
 
 		// restart telegram bot or user if needed
 		if (!this.restartingIntervalId) this.setRestartTelegramInterval(this.restartingIntervalTime);
@@ -183,6 +194,13 @@ export default class TelegramSyncPlugin extends Plugin {
 		// A 409 leaves the bot connected, so nothing else ever revisits it: this loop is the
 		// only place that can notice the other polling client has gone away.
 		Bot.expireStaleConflictFlag(this);
+		// The MAX channel revives on its own: if its polling stopped (a stopTelegram ran,
+		// or the client dropped hard), this loop brings it back without any Telegram
+		// involvement — the MAX-only install never depends on a Telegram token.
+		if (this.settings.maxEnabled && !this.maxBot?.isPolling()) {
+			const { connectMax } = await import("./max/bridge");
+			await connectMax(this);
+		}
 		try {
 			if (
 				(!sessionType || sessionType == "user") &&
@@ -245,6 +263,10 @@ export default class TelegramSyncPlugin extends Plugin {
 			this.restartingIntervalId = undefined;
 		}
 		await Bot.disconnect(this);
+		{
+			const { disconnectMax } = await import("./max/bridge");
+			await disconnectMax(this);
+		}
 		await UserGateway.disconnectUser(this);
 	}
 

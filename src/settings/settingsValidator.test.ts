@@ -102,6 +102,9 @@ const TEST_DEFAULTS: Record<string, unknown> = {
 	interactiveSaveAttachments: true,
 	interactiveInboxFolder: "_Входящие",
 	interactiveActionOverrides: {},
+	maxEnabled: false,
+	maxToken: "",
+	maxTokenEncrypted: false,
 	topicNames: [],
 };
 

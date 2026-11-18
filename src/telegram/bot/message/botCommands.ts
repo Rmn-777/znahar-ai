@@ -19,14 +19,19 @@ import { createFolderIfNotExist, sanitizeFilePath } from "src/utils/fsUtils";
 import { debugLog } from "src/utils/debugLog";
 import { displayAndLog } from "src/utils/logUtils";
 import { redactSecrets } from "src/utils/secretRedaction";
+import { t } from "src/locale/i18n";
 import * as path from "src/utils/pathUtils";
 
-/** Registered with Telegram via setMyCommands, so the chat's "/" menu offers them. */
+/**
+ * Registered with Telegram via setMyCommands, so the chat's "/" menu offers them.
+ * Descriptions follow the interface language: the module is imported lazily on the
+ * first command or connect — after initLocale() has already run in onload.
+ */
 export const TELEGRAM_BOT_COMMANDS: BotCommand[] = [
-	{ command: "status", description: "Connection, queue and AI-spend status" },
-	{ command: "retry", description: "Retry failed and quarantined messages" },
-	{ command: "category", description: "List categories, or refile a note: reply + /category <name>" },
-	{ command: "search", description: "Search your vault: /search <query>" },
+	{ command: "status", description: t("commands.menu.status") },
+	{ command: "retry", description: t("commands.menu.retry") },
+	{ command: "category", description: t("commands.menu.category") },
+	{ command: "search", description: t("commands.menu.search") },
 ];
 
 /**
@@ -79,11 +84,7 @@ export async function handleBotCommand(plugin: TelegramSyncPlugin, msg: Telegram
 		return true;
 
 	if (!isCommandSenderTrusted(plugin, msg)) {
-		await reply(
-			plugin,
-			msg,
-			"Commands are available in a private chat with the vault owner, or to senders personally on the allowed list.",
-		);
+		await reply(plugin, msg, t("commands.notTrusted"));
 		return true;
 	}
 
@@ -112,7 +113,11 @@ async function replyFailure(plugin: TelegramSyncPlugin, msg: TelegramBot.Message
 	displayAndLog(plugin, `Bot command /${command} failed: ${String(e)}`, 0);
 	// Redacted like every other chat-bound error: exception text can carry file URLs
 	// with the bot token in them.
-	await reply(plugin, msg, redactSecrets(`❌ /${command} failed: ${e instanceof Error ? e.message : String(e)}`));
+	await reply(
+		plugin,
+		msg,
+		redactSecrets(t("commands.failed", { command, error: e instanceof Error ? e.message : String(e) })),
+	);
 }
 
 /**
@@ -151,18 +156,24 @@ export function buildStatusLines(plugin: TelegramSyncPlugin): string[] {
 	const quarantined = entries.filter((e) => e.status === "quarantined").length;
 	const spend = plugin.settings.aiMonthlySpend;
 	const lines = [
-		`🤖 Telegram AI ${plugin.manifest.version}`,
-		`Bot: ${plugin.isBotConnected() ? "✅ connected" : "❌ disconnected"}`,
-		`Account (user mode): ${plugin.userConnected ? "✅ connected" : "—"}`,
-		`Queue: ${pending} pending, ${quarantined} quarantined`,
+		`🤖 ${plugin.manifest.name} ${plugin.manifest.version}`,
+		`${t("commands.status.bot")}: ${plugin.isBotConnected() ? t("commands.status.connected") : t("commands.status.disconnected")}`,
+		`${t("commands.status.account")}: ${plugin.userConnected ? t("commands.status.connected") : "—"}`,
+		t("commands.status.queue", { pending: String(pending), quarantined: String(quarantined) }),
 	];
 	// A 409 leaves the bot "connected" while another client eats half the updates, so the
 	// one line that answers "why are my messages missing?" has to be here too.
 	if (plugin.lastPollingErrors.includes("twoBotInstances")) {
-		lines.push("⚠ Another client is polling this bot — set a main device id in settings");
+		lines.push(t("commands.status.twoInstances"));
 	}
 	if (spend?.month) {
-		lines.push(`AI this month (${spend.month}): $${spend.totalUSD.toFixed(2)} over ${spend.requests} requests`);
+		lines.push(
+			t("commands.status.spend", {
+				month: spend.month,
+				total: spend.totalUSD.toFixed(2),
+				requests: String(spend.requests),
+			}),
+		);
 	}
 	return lines;
 }
@@ -174,7 +185,7 @@ async function replyStatus(plugin: TelegramSyncPlugin, msg: TelegramBot.Message)
 async function replyRetry(plugin: TelegramSyncPlugin, msg: TelegramBot.Message): Promise<void> {
 	const ledger = plugin.messageLedger;
 	if (!ledger) {
-		await reply(plugin, msg, "The message ledger is not ready yet — try again in a moment.");
+		await reply(plugin, msg, t("commands.retry.ledgerNotReady"));
 		return;
 	}
 	// The command message itself is already in the queue as "in flight"; requeue everything
@@ -183,7 +194,7 @@ async function replyRetry(plugin: TelegramSyncPlugin, msg: TelegramBot.Message):
 	const targets = ledger.getPendingEntries().filter((e) => e.status === "quarantined" || e.attempts > 0);
 	for (const entry of targets) ledger.requeue(entry.key);
 	if (targets.length === 0) {
-		await reply(plugin, msg, "Nothing to retry — the queue is clean. ✅");
+		await reply(plugin, msg, t("commands.retry.nothing"));
 		return;
 	}
 	// NEVER awaited from here: this command is handled INSIDE the serialized
@@ -198,7 +209,7 @@ async function replyRetry(plugin: TelegramSyncPlugin, msg: TelegramBot.Message):
 			await replayDueMessages(plugin);
 		})();
 	}, 0);
-	await reply(plugin, msg, `🔁 Requeued ${targets.length} message(s). Processing starts right after this reply.`);
+	await reply(plugin, msg, t("commands.retry.requeued", { count: String(targets.length) }));
 }
 
 async function replyCategory(
@@ -210,38 +221,30 @@ async function replyCategory(
 
 	if (!argument) {
 		if (categories.length === 0) {
-			await reply(plugin, msg, "No categories are configured. Add them in the plugin settings.");
+			await reply(plugin, msg, t("commands.category.none"));
 			return;
 		}
 		const list = categories.map((c) => `• ${c.name}${c.description ? ` — ${c.description}` : ""}`).join("\n");
-		await reply(
-			plugin,
-			msg,
-			`📂 Categories:\n${list}\n\nReply to a synced message with /category <name> to refile its note.`,
-		);
+		await reply(plugin, msg, t("commands.category.list", { list }));
 		return;
 	}
 
 	const category = categories.find((c) => c.name.toLowerCase() === argument.toLowerCase());
 	if (!category) {
-		await reply(plugin, msg, `Unknown category "${argument}". Send /category to list them.`);
+		await reply(plugin, msg, t("commands.category.unknown", { name: argument }));
 		return;
 	}
 
 	const replyTo = msg.reply_to_message;
 	if (!replyTo) {
-		await reply(plugin, msg, `Reply to a synced message with /category ${category.name} to refile its note.`);
+		await reply(plugin, msg, t("commands.category.needReply", { name: category.name }));
 		return;
 	}
 
 	const noteRef = plugin.messageLedger?.getNoteRef(replyTo.chat.id, replyTo.message_id);
 	const file = noteRef ? plugin.app.vault.getAbstractFileByPath(noteRef.path) : null;
 	if (!noteRef || !(file instanceof TFile)) {
-		await reply(
-			plugin,
-			msg,
-			"I don't know a note for that message — only notes created by this plugin can be refiled.",
-		);
+		await reply(plugin, msg, t("commands.category.unknownNote"));
 		return;
 	}
 
@@ -253,14 +256,14 @@ async function replyCategory(
 		await reply(
 			plugin,
 			msg,
-			`Category "${category.name}" files notes by a dynamic template (${category.notePathTemplate}) — it has no fixed folder to move the note into.`,
+			t("commands.category.dynamic", { name: category.name, template: category.notePathTemplate }),
 		);
 		return;
 	}
 	await createFolderIfNotExist(plugin.app.vault, targetFolder);
 	const newPath = `${targetFolder}/${file.name}`;
 	if (newPath === file.path) {
-		await reply(plugin, msg, `The note is already in ${targetFolder}.`);
+		await reply(plugin, msg, t("commands.category.alreadyThere", { folder: targetFolder }));
 		return;
 	}
 	// fileManager.renameFile, not vault.rename: it updates the links pointing at the note.
@@ -273,7 +276,7 @@ async function replyCategory(
 		newPath,
 		noteRef.created,
 	);
-	await reply(plugin, msg, `📂 Moved to ${newPath}`);
+	await reply(plugin, msg, t("commands.category.moved", { path: newPath }));
 }
 
 /** The longest template prefix that contains no {{variables}} — the category's fixed folder. */
@@ -301,7 +304,7 @@ async function replySearch(
 	query: string | undefined,
 ): Promise<void> {
 	if (!query) {
-		await reply(plugin, msg, "Usage: /search <query>");
+		await reply(plugin, msg, t("commands.search.usage"));
 		return;
 	}
 
@@ -320,13 +323,16 @@ async function replySearch(
 	}
 
 	if (scored.length === 0) {
-		await reply(plugin, msg, `Nothing found for "${query}".`);
+		await reply(plugin, msg, t("commands.search.nothing", { query }));
 		return;
 	}
 
 	scored.sort((a, b) => b.score - a.score);
 	const top = scored.slice(0, SEARCH_RESULT_LIMIT);
 	const lines = top.map((r, i) => `${i + 1}. ${r.file.path}`);
-	const more = scored.length > top.length ? `\n…and ${scored.length - top.length} more.` : "";
-	await reply(plugin, msg, `🔎 Results for "${query}":\n${lines.join("\n")}${more}`);
+	const more =
+		scored.length > top.length
+			? "\n" + t("commands.search.more", { count: String(scored.length - top.length) })
+			: "";
+	await reply(plugin, msg, t("commands.search.results", { query, lines: lines.join("\n") }) + more);
 }

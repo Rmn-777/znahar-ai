@@ -167,6 +167,12 @@ export async function connect(plugin: TelegramSyncPlugin) {
  * restart loop for as long as the problem persists.
  */
 function reportEmptyToken(plugin: TelegramSyncPlugin) {
+	// A MAX-only install never fills a Telegram token on purpose: that notice would
+	// fire on every restart cycle forever. Console line instead while MAX is enabled.
+	if (plugin.settings.maxEnabled) {
+		debugLog("Telegram", "bot token empty - Telegram stays offline (MAX channel active)");
+		return;
+	}
 	displayAndLog(plugin, t("notices.tokenEmpty"), plugin.settings.setupCompleted ? _15sec : 0);
 }
 

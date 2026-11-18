@@ -23,6 +23,12 @@ const { fetchWebpageMock, isPrivateNetworkMock, transcriptionProviderMock, getTr
 vi.mock("src/utils/webScraper", () => ({ fetchWebpageAsMarkdown: fetchWebpageMock }));
 vi.mock("src/utils/privateNetwork", () => ({ isPrivateNetworkUrl: isPrivateNetworkMock }));
 vi.mock("src/ai/providers", () => ({ getTranscriptionProvider: getTranscriptionProviderMock }));
+// Real extractor by default (the .txt tests exercise it); individual tests may swap in
+// a spy to simulate pdf.js buffer behavior.
+vi.mock("src/utils/documentExtractor", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("src/utils/documentExtractor")>();
+	return { ...actual, extractTextFromDocument: vi.fn(actual.extractTextFromDocument) };
+});
 
 import { prepareSource } from "./prepare";
 import type TelegramSyncPlugin from "src/main";
@@ -112,6 +118,49 @@ describe("voice transcription", () => {
 });
 
 describe("documents", () => {
+	it("saves the attachment BEFORE extraction: a detached buffer must not kill the save", async () => {
+		// pdf.js transfers (detaches) the ArrayBuffer it is handed. Reproduce that exact
+		// behavior in the extractor spy: after it runs, file.bytes is dead memory — the
+		// save that already happened must survive it.
+		const { extractTextFromDocument } = await import("src/utils/documentExtractor");
+		const sawBytesBeforeDetach = vi.fn();
+		vi.mocked(extractTextFromDocument).mockImplementationOnce(async (bytes: Uint8Array) => {
+			sawBytesBeforeDetach(bytes.byteLength);
+			try {
+				structuredClone(bytes.buffer, { transfer: [bytes.buffer] });
+			} catch {
+				// Some Node buffers refuse detaching — the call order assertion below still
+				// pins the regression independently.
+			}
+			return { success: true, text: "извлечённый текст", metadata: { format: "txt" } };
+		});
+
+		const plugin = makePlugin();
+		const vaultFiles = (plugin as unknown as { vaultFiles: Map<string, unknown> }).vaultFiles;
+		const createBinarySpy = vi.spyOn(plugin.app.vault, "createBinary");
+
+		const source = await prepareSource(
+			plugin,
+			baseMsg({
+				document: {
+					file_id: "doc1",
+					file_unique_id: "d",
+					file_name: "отчёт.txt",
+					mime_type: "text/plain",
+					file_size: 10,
+				},
+			}),
+		);
+
+		// Order: createBinary ran while bytes were still alive (before the extractor).
+		expect(createBinarySpy.mock.invocationCallOrder[0]).toBeLessThan(
+			sawBytesBeforeDetach.mock.invocationCallOrder[0],
+		);
+		expect(vaultFiles.size).toBe(1);
+		expect(source.sourceText).toBe("извлечённый текст");
+		expect(source.filePath).toBeDefined();
+	});
+
 	it("extracts local text and saves the file", async () => {
 		const plugin = makePlugin();
 		const source = await prepareSource(

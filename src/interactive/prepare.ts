@@ -207,8 +207,12 @@ export async function prepareSource(
 	}
 
 	if (downloaded && contentType === "document") {
-		const extracted = await extractDocumentText(downloaded);
+		// Save FIRST, extract SECOND: pdf.js takes ownership of the buffer it is handed
+		// (the ArrayBuffer gets detached), and a createBinary that runs after extraction
+		// constructs a Uint8Array over dead memory — "Cannot perform Construct on a
+		// detached ArrayBuffer" (user-reported on a real PDF). Extraction is last.
 		const filePath = await saveAttachment(plugin, msg, downloaded, distributionRule);
+		const extracted = await extractDocumentText(downloaded);
 		if (!extracted && !filePath) throw new PrepareError("interactive.prepare.documentOpaque");
 		const text = extracted || "";
 		return { sourceText: text, aiText: text, contentType, filePath, fileName: downloaded.fileName };

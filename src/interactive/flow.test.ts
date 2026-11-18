@@ -453,6 +453,20 @@ describe("handleInteractiveText", () => {
 		expect(prompt).toContain("revised note");
 	});
 
+	it("a media file with no text takes its FILE name as the note title, not «note»", async () => {
+		const plugin = makePlugin({ aiEnabled: false });
+		const docMsg = {
+			...textMsg("", 1, 30),
+			text: undefined,
+			document: { file_id: "d", file_unique_id: "d", file_name: "ОТЗЫВ на ГОСТ 1.doc", file_size: 10 },
+		} as unknown as TelegramBot.Message;
+		await startInteractiveFlow(plugin, docMsg);
+		const [path] = [...plugin.__harness.notes.keys()];
+		expect(path).toContain("ОТЗЫВ на ГОСТ 1");
+		expect(path).not.toContain("note");
+		expect(path).not.toContain(".doc.md"); // extension stripped from the title
+	});
+
 	it("a thought survives into the confirmed note's Мои мысли layer", async () => {
 		const plugin = makePlugin();
 		await startInteractiveFlow(plugin, textMsg());

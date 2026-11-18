@@ -27,7 +27,8 @@ export type SecretField =
 	| "claudeApiKey"
 	| "geminiApiKey"
 	| "customApiKey"
-	| "telegramApiHash";
+	| "telegramApiHash"
+	| "maxToken";
 
 interface SecretDescriptor {
 	/** Settings key holding the value — ciphertext whenever `flag` is true. */
@@ -76,6 +77,12 @@ export const SECRETS: readonly SecretDescriptor[] = [
 		flag: "telegramApiHashEncrypted",
 		label: "Telegram api_hash",
 		recoveryHint: "my.telegram.org → API development tools",
+	},
+	{
+		value: "maxToken",
+		flag: "maxTokenEncrypted",
+		label: "MAX bot token",
+		recoveryHint: "MAX для бизнеса → Чат-боты → Настройки → Получить токен",
 	},
 ];
 

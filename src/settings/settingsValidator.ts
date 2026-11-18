@@ -160,6 +160,9 @@ export const SETTINGS_SCHEMA: Record<string, FieldValidator> = {
 	interactiveSaveAttachments: isBoolean,
 	interactiveInboxFolder: isString,
 	interactiveActionOverrides: isObject,
+	maxEnabled: isBoolean,
+	maxToken: isString,
+	maxTokenEncrypted: isBoolean,
 	topicNames: isArray,
 };
 

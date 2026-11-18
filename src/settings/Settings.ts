@@ -217,6 +217,12 @@ export interface TelegramSyncSettings {
 	interactiveInboxFolder: string;
 	/** Interactive flow: per-action overrides — enabled / quick-set / prompt. */
 	interactiveActionOverrides: Record<string, ActionOverride>;
+	/** MAX messenger channel: accept messages from a MAX bot into the same flow. */
+	maxEnabled: boolean;
+	/** MAX bot token (Authorization header). Stored encrypted — see secretStore. */
+	maxToken: string;
+	/** Whether maxToken holds ciphertext. */
+	maxTokenEncrypted: boolean;
 	// add new settings above this line
 	topicNames: Topic[];
 }
@@ -324,6 +330,9 @@ export const DEFAULT_SETTINGS: TelegramSyncSettings = {
 	interactiveDisabled: false,
 	interactiveInboxFolder: "_Входящие",
 	interactiveActionOverrides: {},
+	maxEnabled: false,
+	maxToken: "",
+	maxTokenEncrypted: false,
 	// add new settings above this line
 	topicNames: [],
 };

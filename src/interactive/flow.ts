@@ -37,12 +37,14 @@ import { isSenderAllowed } from "src/telegram/bot/message/accessControl";
 import { registerNoteForMessage } from "src/telegram/bot/message/contentHandler";
 import { MessageDistributionRule } from "src/settings/messageDistribution";
 import { recordProcessingDone } from "src/processing/ProcessingTracker";
-import type { InteractiveEntry, PreparedSource } from "./types";
+import type { FlowChannel, InteractiveEntry, PreparedSource } from "./types";
 import { parseCallbackData, encodeCallbackData } from "./callbackData";
+import { convertKeyboardToMax } from "../max/convertors";
 import { appliesToType, catalogPageCount, getAction, isActionEnabled } from "./catalog";
 import { buildMenuKeyboard, buildMenuText, buildPreviewKeyboard, buildPreviewText, type MenuMode } from "./menuView";
 import { prepareSource, PrepareError } from "./prepare";
 import { runAction, runCustomCommand, ActionRunError } from "./runner";
+import { providerErrorHint, shortRawError } from "./errors";
 import { composeNote } from "./composer";
 
 /** Filename cap for the date+title stem — Windows path limits start at 260 chars. */
@@ -78,6 +80,7 @@ export async function startInteractiveFlow(
 	msg: TelegramBot.Message,
 	distributionRule?: MessageDistributionRule,
 	trackingId?: string,
+	channel: FlowChannel = "telegram",
 ): Promise<"menu" | "saved"> {
 	const store = plugin.interactiveStore;
 	if (!store) throw new Error("Interactive store not initialized");
@@ -88,7 +91,7 @@ export async function startInteractiveFlow(
 		// second one, and re-render for the stage it actually is in.
 		store.refreshMsg(existing.key, msg);
 	} else {
-		store.create(msg, "menu", { rule: distributionRule });
+		store.create(msg, "menu", { rule: distributionRule, channel });
 	}
 
 	if (!interactiveMenuAvailable(plugin)) {
@@ -98,7 +101,7 @@ export async function startInteractiveFlow(
 		const entry = store.get(msg.chat.id, msg.message_id)!;
 		const notePath = await saveSourceOnly(plugin, entry);
 		if (trackingId) recordProcessingDone(trackingId);
-		void replyQuietly(plugin, entry.chatId, t("interactive.flow.savedSource", { path: notePath }));
+		void replyQuietly(plugin, entry.chatId, t("interactive.flow.savedSource", { path: notePath }), channel);
 		return "saved";
 	}
 
@@ -128,6 +131,58 @@ function menuModeOf(entry: InteractiveEntry): MenuMode {
 
 // ─── chat surface ─────────────────────────────────────────────────────────────
 
+/**
+ * One chat-surface contract for both channels: the flow builds Telegram-style
+ * keyboards and speaks ids; the MAX transport converts at the edge.
+ */
+interface FlowTransport {
+	sendMessage(
+		chatId: number,
+		text: string,
+		markup?: TelegramBot.InlineKeyboardMarkup,
+	): Promise<{ messageId?: number }>;
+	editMessageText(
+		chatId: number,
+		messageId: number,
+		text: string,
+		markup?: TelegramBot.InlineKeyboardMarkup,
+	): Promise<unknown>;
+	answerCallbackQuery(queryId: string, text?: string): Promise<unknown>;
+}
+
+function telegramTransport(plugin: TelegramSyncPlugin): FlowTransport | null {
+	const bot = plugin.bot;
+	if (!bot) return null;
+	return {
+		async sendMessage(chatId, text, markup) {
+			const sent = await bot.sendMessage(chatId, text, { reply_markup: markup });
+			return { messageId: sent.message_id };
+		},
+		editMessageText: (chatId, messageId, text, markup) =>
+			bot.editMessageText(chatId, messageId, text, { reply_markup: markup }),
+		answerCallbackQuery: (queryId, text) => bot.answerCallbackQuery(queryId, text ? { text } : undefined),
+	};
+}
+
+function maxTransport(plugin: TelegramSyncPlugin): FlowTransport | null {
+	const max = plugin.maxBot;
+	if (!max) return null;
+	return {
+		async sendMessage(chatId, text, markup) {
+			const sent = await max.sendMessage(chatId, text, markup ? convertKeyboardToMax(markup) : undefined);
+			const mid = Number(sent.body?.mid);
+			return { messageId: Number.isFinite(mid) ? mid : undefined };
+		},
+		editMessageText: (chatId, messageId, text, markup) =>
+			max.editMessageText(chatId, String(messageId), text, markup ? convertKeyboardToMax(markup) : undefined),
+		answerCallbackQuery: (queryId, text) => max.answerCallback(queryId, text),
+	};
+}
+
+function transportOf(plugin: TelegramSyncPlugin, entry: InteractiveEntry): FlowTransport | null {
+	return entry.channel === "max" ? maxTransport(plugin) : telegramTransport(plugin);
+}
+
 /** Edits the flow bubble, or posts a fresh one when the old is gone/uneditable. */
 async function editOrSend(
 	plugin: TelegramSyncPlugin,
@@ -135,13 +190,11 @@ async function editOrSend(
 	text: string,
 	keyboard?: TelegramBot.InlineKeyboardMarkup,
 ): Promise<void> {
-	const bot = plugin.bot;
-	if (!bot) throw new Error("Bot disconnected while rendering the interactive flow");
+	const transport = transportOf(plugin, entry);
+	if (!transport) throw new Error("Chat transport offline while rendering the interactive flow");
 	if (entry.menuMessageId) {
 		try {
-			await bot.editMessageText(entry.chatId, entry.menuMessageId, text, {
-				reply_markup: keyboard,
-			});
+			await transport.editMessageText(entry.chatId, entry.menuMessageId, text, keyboard);
 			return;
 		} catch (e) {
 			// The bubble was deleted or is too old to edit — post a fresh one. This is
@@ -149,8 +202,10 @@ async function editOrSend(
 			debugLog("Interactive", "menu bubble edit failed, reposting:", e);
 		}
 	}
-	const sent = await bot.sendMessage(entry.chatId, text, { reply_markup: keyboard });
-	plugin.interactiveStore?.patch(entry.key, { menuMessageId: sent.message_id });
+	const sent = await transport.sendMessage(entry.chatId, text, keyboard);
+	if (sent.messageId !== undefined) {
+		plugin.interactiveStore?.patch(entry.key, { menuMessageId: sent.messageId });
+	}
 }
 
 async function renderMenu(plugin: TelegramSyncPlugin, entry: InteractiveEntry, mode: MenuMode): Promise<void> {
@@ -189,9 +244,15 @@ async function renderPrompt(plugin: TelegramSyncPlugin, entry: InteractiveEntry,
 	await editOrSend(plugin, entry, t(isCustom ? "interactive.flow.awaitCustom" : "interactive.flow.awaitEdit"), back);
 }
 
-async function replyQuietly(plugin: TelegramSyncPlugin, chatId: number, text: string): Promise<void> {
+async function replyQuietly(
+	plugin: TelegramSyncPlugin,
+	chatId: number,
+	text: string,
+	channel: FlowChannel = "telegram",
+): Promise<void> {
+	const transport = channel === "max" ? maxTransport(plugin) : telegramTransport(plugin);
 	try {
-		await plugin.bot?.sendMessage(chatId, text);
+		await transport?.sendMessage(chatId, text);
 	} catch (e) {
 		// Cosmetic: the note (or menu) already exists; a failed confirmation reply must
 		// not turn into a ledger retry that duplicates it.
@@ -203,7 +264,16 @@ async function replyQuietly(plugin: TelegramSyncPlugin, chatId: number, text: st
 
 /** A filename-safe title: first words of the AI result or the source, markdown stripped. */
 function deriveTitle(entry: Pick<InteractiveEntry, "result" | "source" | "msg">): string {
-	const raw = (entry.result?.trim() || entry.source?.sourceText || entry.msg.text || entry.msg.caption || "")
+	// A media file with no text anywhere still deserves its own name on disk instead of
+	// a faceless "note" (user-reported: "…09-35 note.md") — extension stripped.
+	const fileName = (
+		entry.source?.fileName ||
+		entry.msg.document?.file_name ||
+		entry.msg.audio?.file_name ||
+		entry.msg.video?.file_name ||
+		""
+	).replace(/\.[^.]+$/, "");
+	const raw = (entry.result?.trim() || entry.source?.sourceText || entry.msg.text || entry.msg.caption || fileName)
 		.split("\n")
 		.find((line) => line.trim().length > 0);
 	const flat = (raw || "")
@@ -361,27 +431,34 @@ async function showErrorAndPreview(plugin: TelegramSyncPlugin, entry: Interactiv
 
 function flowErrorMessage(e: unknown): string {
 	if (e instanceof PrepareError || e instanceof ActionRunError) return t(e.localeKey);
-	return String(e instanceof Error ? e.message : e);
+	// A raw provider/transport error: localized hint first, the vendor's own text
+	// (truncated) underneath — it still names the exact failure for bug reports.
+	const raw = String(e instanceof Error ? e.message : e);
+	const hint = providerErrorHint(raw);
+	return hint ? `${t(hint)}\n(${shortRawError(raw)})` : raw;
 }
 
 // ─── callback routing ─────────────────────────────────────────────────────────
 
 /**
  * Handles a callback_query. Returns true when the flow consumed it (always answer it
- * then — Telegram keeps the button's spinner until answered).
+ * then — Telegram keeps the button's spinner until answered). `channel` names the
+ * messenger the press arrived from: the same numeric ids exist in both channels, so
+ * an entry from the other channel is treated as expired rather than driven remotely.
  */
 export async function handleInteractiveCallback(
 	plugin: TelegramSyncPlugin,
 	query: TelegramBot.CallbackQuery,
+	channel: FlowChannel = "telegram",
 ): Promise<boolean> {
 	const parsed = query.data ? parseCallbackData(query.data) : null;
 	if (!parsed) return false;
 	const { chatId, messageId, command } = parsed;
-	const bot = plugin.bot;
-	if (!bot) return false;
+	const transport = channel === "max" ? maxTransport(plugin) : telegramTransport(plugin);
+	if (!transport) return false;
 
 	const answer = (text?: string) =>
-		bot.answerCallbackQuery(query.id, text ? { text } : undefined).catch(() => {
+		transport.answerCallbackQuery(query.id, text).catch(() => {
 			// An unanswered query only leaves a spinner for a few seconds.
 		});
 
@@ -400,6 +477,12 @@ export async function handleInteractiveCallback(
 	const store = plugin.interactiveStore;
 	const entry = store?.get(chatId, messageId);
 	if (!store || !entry) {
+		await answer(t("interactive.flow.expired"));
+		return true;
+	}
+	// A press from the wrong messenger: the ids are numerically independent, so this is
+	// a stranger or a stale bubble — answer expired, drive nothing.
+	if ((entry.channel ?? "telegram") !== channel) {
 		await answer(t("interactive.flow.expired"));
 		return true;
 	}
@@ -457,7 +540,11 @@ const REVISION_COMMAND =
  * otherwise the newest flow in this chat that awaits input. Returns true when
  * consumed — the message must then NOT enter the ordinary pipeline.
  */
-export async function handleInteractiveText(plugin: TelegramSyncPlugin, msg: TelegramBot.Message): Promise<boolean> {
+export async function handleInteractiveText(
+	plugin: TelegramSyncPlugin,
+	msg: TelegramBot.Message,
+	channel: FlowChannel = "telegram",
+): Promise<boolean> {
 	const store = plugin.interactiveStore;
 	if (!store || !msg.text || !msg.text.trim()) return false;
 
@@ -467,7 +554,9 @@ export async function handleInteractiveText(plugin: TelegramSyncPlugin, msg: Tel
 			.all()
 			.find(
 				(candidate) =>
-					candidate.chatId === msg.chat.id && candidate.menuMessageId === msg.reply_to_message!.message_id,
+					candidate.chatId === msg.chat.id &&
+					(candidate.channel ?? "telegram") === channel &&
+					candidate.menuMessageId === msg.reply_to_message!.message_id,
 			);
 	}
 	if (!entry) {
@@ -476,6 +565,7 @@ export async function handleInteractiveText(plugin: TelegramSyncPlugin, msg: Tel
 			.find(
 				(candidate) =>
 					candidate.chatId === msg.chat.id &&
+					(candidate.channel ?? "telegram") === channel &&
 					(candidate.stage === "awaiting_custom" || candidate.stage === "editing"),
 			);
 	}

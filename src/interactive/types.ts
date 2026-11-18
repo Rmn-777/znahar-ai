@@ -41,11 +41,16 @@ export interface PreparedSource {
 	fileName?: string;
 }
 
+/** The messenger the flow lives in. Telegram is the original channel; MAX rides the same core. */
+export type FlowChannel = "telegram" | "max";
+
 export interface InteractiveEntry {
 	/** Ledger key of the source message: "chatId:messageId". Edits never enter the flow. */
 	key: string;
 	chatId: number;
 	messageId: number;
+	/** Which messenger owns this flow; defaults to telegram when absent (legacy entries). */
+	channel?: FlowChannel;
 	stage: InteractiveStage;
 	/** The chat bubble whose buttons drive the flow — edited in place on every stage change. */
 	menuMessageId?: number;

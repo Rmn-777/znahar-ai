@@ -919,6 +919,19 @@ export function buildSettingDefinitions(host: DefinitionHost): SettingDefinition
 						})();
 					},
 				},
+				{
+					name: t("settings.max.enable"),
+					desc: t("settings.max.enable.desc"),
+					aliases: ["max", "messenger", "channel"],
+					control: { type: "toggle", key: "maxEnabled", defaultValue: false },
+				},
+				{
+					name: t("settings.max.token"),
+					desc: t("settings.max.token.desc"),
+					aliases: ["max token"],
+					visible: () => plugin.settings.maxEnabled,
+					control: { type: "text", key: "maxToken", placeholder: "токен из «MAX для бизнеса»" },
+				},
 			],
 		},
 
